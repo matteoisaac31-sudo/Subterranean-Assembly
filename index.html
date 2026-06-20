@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Subterranean Assembly - CREATE EDITION ⚙️</title>
+    <style>
+        body { margin: 0; background-color: #080810; overflow: hidden; font-family: monospace; user-select: none; color: #fff; }
+        canvas { display: block; background: radial-gradient(circle, #101026 0%, #05050f 100%); }
+        
+        #hud {
+            position: absolute; top: 15px; left: 15px; 
+            background: rgba(10, 5, 5, 0.95); padding: 15px;
+            border-radius: 6px; border: 2px solid #d97706;
+            box-shadow: 0 0 15px rgba(217, 119, 6, 0.2); pointer-events: none; width: 300px; z-index: 10;
+        }
+        .hud-title { font-size: 16px; font-weight: bold; color: #d97706; margin-bottom: 10px; text-transform: uppercase; }
+        .stat-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
+        
+        #hotbar {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px; background: rgba(5, 5, 15, 0.9); 
+            border: 2px solid #333355; padding: 10px; border-radius: 8px; z-index: 10;
+        }
+        .slot {
+            width: 70px; height: 60px; background: rgba(20, 20, 35, 0.8);
+            border: 2px solid #555577; border-radius: 4px; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            position: relative; cursor: pointer; transition: 0.1s;
+        }
+        .slot.selected { border-color: #d97706; background: rgba(217, 119, 6, 0.15); box-shadow: 0 0 8px rgba(217, 119, 6, 0.4); }
+        .slot-key { position: absolute; top: 2px; left: 4px; font-size: 10px; color: #888; }
+        .slot-name { font-size: 8px; text-align: center; font-weight: bold; margin-top: 18px; color: #ddd; }
+        
+        .preview-box { position: absolute; top: 10px; width: 16px; height: 16px; border-radius: 2px; }
+        .p-drill { background: #ff5500; border: 1px solid #fff; }
+        .p-conv { background: #222c3a; border: 1px solid #00ffaa; }
+        .p-core { background: #2d1b3d; border: 1px solid #ff00ff; }
+        .p-wheel { background: #8b5a2b; border: 1px solid #d97706; border-radius: 50%; }
+        .p-cog { background: #d97706; border: 2px dashed #b45309; border-radius: 50%; }
+        .p-crush { background: #475569; border: 1px solid #94a3b8; }
+
+        #controles-info {
+            position: absolute; top: 15px; right: 15px;
+            background: rgba(5, 5, 15, 0.85); padding: 12px;
+            border-radius: 6px; border: 1px solid #555577; font-size: 11px; line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="hud-title">⚙️ KINETIC NETWORK</div>
+        <div class="stat-line"><span>KINETIC STRESS:</span> <span id="ui-stress" style="color: #00ffff;">0 / 0 su</span></div>
+        <div class="stat-line"><span>NETWORK STATUS:</span> <span id="ui-status" style="color: #00ffaa; font-weight: bold;">IDLE</span></div>
+        <div class="stat-line"><span>TOTAL CREDITS:</span> <span id="ui-money" style="color: #ffcc00; font-weight: bold;">$0</span></div>
+        <hr style="border: 0; border-top: 1px solid #333355; margin: 10px 0;">
+        <div class="stat-line"><span>CORE BUFFER:</span></div>
+        <div class="stat-line" style="padding-left: 10px; font-size: 11px;"><span>▪ Raw Iron:</span> <span id="res-raw" style="color:#ef4444;">0 (Needs Crushing!)</span></div>
+        <div class="stat-line" style="padding-left: 10px;"><span>▪ Refined Dust:</span> <span id="res-iron" style="color:#ffd700;">0</span></div>
+        <div class="stat-line" style="padding-left: 10px;"><span>▪ Neon Crystal:</span> <span id="res-neon" style="color:#00ffff;">0</span></div>
+    </div>
+
+    <div id="controles-info">
+        <b style="color: #d97706;">CREATE CONSOLE:</b><br>
+        • <b>W, A, S, D</b> : Move Camera<br>
+        • <b>Keys 1 to 6</b> : Select Component<br>
+        • <b>Mouse + R</b> : Rotate Component<br>
+        • <b>Left Click</b> : Assemble<br>
+        • <b>Right Click</b> : Break
+    </div>
+
+    <div id="hotbar">
+        <div class="slot selected" id="slot-1" onclick="seleccionarHerramienta(1)">
+            <span class="slot-key">1</span><div class="preview-box p-drill"></div><div class="slot-name">MECH. DRILL</div>
+        </div>
+        <div class="slot" id="slot-2" onclick="seleccionarHerramienta(2)">
+            <span class="slot-key">2</span><div class="preview-box p-conv"></div><div class="slot-name">MECH. BELT</div>
+        </div>
+        <div class="slot" id="slot-3" onclick="seleccionarHerramienta(3)">
+            <span class="slot-key">3</span><div class="preview-box p-core"></div><div class="slot-name">VAULT (CORE)</div>
+        </div>
+        <div class="slot" id="slot-4" onclick="seleccionarHerramienta(4)">
+            <span class="slot-key">4</span><div class="preview-box p-wheel"></div><div class="slot-name">WATER WHEEL</div>
+        </div>
+        <div class="slot" id="slot-5" onclick="seleccionarHerramienta(5)">
+            <span class="slot-key">5</span><div class="preview-box p-cog"></div><div class="slot-name">COGWHEEL</div>
+        </div>
+        <div class="slot" id="slot-6" onclick="seleccionarHerramienta(6)">
+            <span class="slot-key">6</span><div class="preview-box p-crush"></div><div class="slot-name">CRUSHER</div>
+        </div>
+    </div>
+
+    <canvas id="factoryCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("factoryCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+
+const TILE_SIZE = 50; 
+const GRID_WIDTH = 40; const GRID_HEIGHT = 40;
+let camX = 500; let camY = 500;
+const keys = {};
+let mouseTileX = 0; let mouseTileY = 0;
+
+let playerMoney = 0;
+let coreStorage = { raw_iron: 0, iron: 0, neon: 0 };
+
+// NUEVO SISTEMA KINÉTICO (Reemplaza a Network Power)
+let kineticNetwork = { capacity: 0, stress: 0, isOverstressed: false };
+let globalRotationSpeed = 0; // Se detiene si hay Overstress
+let visualRotationAngle = 0;
+
+let factoryMap = {};
+let oreVeins = {};
+let activeMinerals = [];
+
+const DIRECTIONS = ["N", "E", "S", "O"];
+let selectedTool = 1; 
+
+let conveyorScrollOffset = 0;
+
+// Tipos de Máquinas actualizadas con Costos de Estrés (su = stress units)
+const MACHINE_TYPES = {
+    1: { id: "extractor", color: "#ff5500", name: "Mechanical Drill", stressCost: 64, stressGen: 0, dir: "E" },
+    2: { id: "conveyor", color: "#222c3a", name: "Mechanical Belt", stressCost: 4, stressGen: 0, dir: "E" },
+    3: { id: "core_receptor", color: "#2d1b3d", name: "Item Vault", stressCost: 0, stressGen: 0, dir: null },
+    4: { id: "water_wheel", color: "#8b5a2b", name: "Water Wheel", stressCost: 0, stressGen: 256, dir: "N" },
+    5: { id: "cogwheel", color: "#d97706", name: "Cogwheel", stressCost: 1, stressGen: 0, dir: null },
+    6: { id: "crusher", color: "#475569", name: "Mechanical Crusher", stressCost: 128, stressGen: 0, dir: "E" }
+};
+
+const PRICES = { iron: 25, neon: 50 }; // Solo se paga por hierro refinado
+
+class TransportTruck {
+    constructor(startX, startY, targetX, targetY) {
+        this.x = startX; this.y = startY;
+        this.homeX = startX; this.homeY = startY;
+        this.shopX = targetX; this.shopY = targetY;
+        this.state = "LOADING"; 
+        this.cargo = { iron: 0, neon: 0 };
+        this.maxCapacity = 15;
+        this.speed = 2.5;
+        this.timer = 0;
+    }
+
+    update() {
+        let totalCargo = this.cargo.iron + this.cargo.neon;
+        if (this.state === "LOADING") {
+            if (totalCargo < this.maxCapacity) {
+                // EL CAMIÓN AHORA IGNORA EL RAW IRON. SOLO LLEVA IRON REFINADO.
+                if (coreStorage.iron > 0) {
+                    coreStorage.iron--; this.cargo.iron++;
+                } else if (coreStorage.neon > 0) {
+                    coreStorage.neon--; this.cargo.neon++;
+                } else if (totalCargo > 0) {
+                    this.state = "TO_SHOP";
+                }
+            } else { this.state = "TO_SHOP"; }
+        }
+        else if (this.state === "TO_SHOP") { this.moveTo(this.shopX, this.shopY, "UNLOADING"); }
+        else if (this.state === "UNLOADING") {
+            this.timer++;
+            if (this.timer >= 40) {
+                let revenue = (this.cargo.iron * PRICES.iron) + (this.cargo.neon * PRICES.neon);
+                playerMoney += revenue;
+                this.cargo.iron = 0; this.cargo.neon = 0;
+                this.timer = 0;
+                this.state = "TO_HOME";
+            }
+        }
+        else if (this.state === "TO_HOME") { this.moveTo(this.homeX, this.homeY, "LOADING"); }
+    }
+
+    moveTo(targetX, targetY, nextState) {
+        let diffX = targetX - this.x; let diffY = targetY - this.y;
+        if (Math.abs(diffX) > this.speed) this.x += Math.sign(diffX) * this.speed;
+        else if (Math.abs(diffY) > this.speed) this.y += Math.sign(diffY) * this.speed;
+        else { this.x = targetX; this.y = targetY; this.state = nextState; }
+    }
+
+    draw() {
+        let rX = this.x - camX; let rY = this.y - camY;
+        ctx.fillStyle = "#eab308"; ctx.fillRect(rX - 18, rY - 12, 36, 24);
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.strokeRect(rX - 18, rY - 12, 36, 24);
+        ctx.fillStyle = "#38bdf8";
+        if (this.state === "TO_SHOP" || this.state === "UNLOADING") ctx.fillRect(rX + 8, rY - 10, 10, 20);
+        else ctx.fillRect(rX - 18, rY - 10, 10, 20);
+
+        let total = this.cargo.iron + this.cargo.neon;
+        if (total > 0) {
+            ctx.fillStyle = this.cargo.neon > this.cargo.iron ? "#00ffff" : "#ffd700";
+            ctx.fillRect(rX - 5, rY - 6, 12, 12);
+        }
+    }
+}
+
+let logisticsTruck = null;
+const VELOCIDAD_MINERAL = 1.5;
+
+class Mineral {
+    constructor(startX, startY, type) {
+        this.x = startX; this.y = startY; 
+        this.targetX = startX; this.targetY = startY;
+        this.type = type; // "raw_iron", "iron_dust", "neon"
+        this.destroy = false;
+    }
+}
+
+function generateOreVeins() {
+    for (let x = 0; x < GRID_WIDTH; x++) {
+        for (let y = 0; y < GRID_HEIGHT; y++) {
+            let desc = Math.random();
+            if (desc < 0.08) oreVeins[`${x},${y}`] = { type: "raw_iron" }; 
+            else if (desc > 0.95) oreVeins[`${x},${y}`] = { type: "neon" }; 
+        }
+    }
+    factoryMap["15,15"] = { tipo: "core_receptor", mineralActual: null, timer: 0, color: "#2d1b3d", dir: null };
+    factoryMap["23,15"] = { tipo: "shop_hub", color: "#0f172a", dir: null };
+    logisticsTruck = new TransportTruck(
+        15 * TILE_SIZE + TILE_SIZE / 2, 15 * TILE_SIZE + TILE_SIZE / 2,
+        23 * TILE_SIZE + TILE_SIZE / 2, 15 * TILE_SIZE + TILE_SIZE / 2
+    );
+}
+
+function updateKineticNetwork() {
+    kineticNetwork.capacity = 0;
+    kineticNetwork.stress = 0;
+
+    for (let key in factoryMap) {
+        let machine = factoryMap[key];
+        let mType = Object.values(MACHINE_TYPES).find(t => t.id === machine.tipo);
+        if (mType) {
+            kineticNetwork.capacity += mType.stressGen;
+            kineticNetwork.stress += mType.stressCost;
+        }
+    }
+
+    kineticNetwork.isOverstressed = kineticNetwork.stress > kineticNetwork.capacity;
+    
+    // Si hay energía mecánica suficiente, todo gira. Si no, se bloquea.
+    if (!kineticNetwork.isOverstressed && kineticNetwork.capacity > 0) {
+        globalRotationSpeed = 0.08;
+        visualRotationAngle += globalRotationSpeed;
+        conveyorScrollOffset = (conveyorScrollOffset + 1.5) % 16; 
+    } else {
+        globalRotationSpeed = 0;
+    }
+}
+
+function updateFactoryLogistics() {
+    updateKineticNetwork();
+
+    if (!kineticNetwork.isOverstressed && kineticNetwork.capacity > 0) {
+        // PROCESAMIENTO DE MÁQUINAS SOLO SI HAY ENERGÍA
+        for (let key in factoryMap) {
+            let machine = factoryMap[key];
+            let [mX, mY] = key.split(",").map(Number);
+
+            if (machine.tipo === "extractor") {
+                if (!machine.mineralActual) {
+                    machine.timer++;
+                    if (machine.timer >= 80) {
+                        let vein = oreVeins[key];
+                        if (vein) {
+                            let newOre = new Mineral(mX * TILE_SIZE + 25, mY * TILE_SIZE + 25, vein.type);
+                            activeMinerals.push(newOre);
+                            machine.mineralActual = newOre;
+                        }
+                        machine.timer = 0;
+                    }
+                }
+            } 
+            else if (machine.tipo === "crusher") {
+                if (machine.mineralActual && machine.mineralActual.type === "raw_iron") {
+                    machine.timer++;
+                    if (machine.timer >= 50) { // Toma tiempo aplastar el mineral
+                        machine.mineralActual.type = "iron_dust"; // TRITURACIÓN COMPLETADA
+                        machine.timer = 0;
+                    }
+                }
+            }
+        }
+
+        // FÍSICAS DE MOVIMIENTO EN CINTAS
+        for (let i = 0; i < activeMinerals.length; i++) {
+            let m = activeMinerals[i];
+
+            if (m.x < m.targetX) m.x = Math.min(m.x + VELOCIDAD_MINERAL, m.targetX);
+            else if (m.x > m.targetX) m.x = Math.max(m.x - VELOCIDAD_MINERAL, m.targetX);
+            if (m.y < m.targetY) m.y = Math.min(m.y + VELOCIDAD_MINERAL, m.targetY);
+            else if (m.y > m.targetY) m.y = Math.max(m.y - VELOCIDAD_MINERAL, m.targetY);
+
+            if (m.x === m.targetX && m.y === m.targetY) {
+                let tileX = Math.floor(m.x / TILE_SIZE);
+                let tileY = Math.floor(m.y / TILE_SIZE);
+                let currentKey = `${tileX},${tileY}`;
+                let currentMachine = factoryMap[currentKey];
+
+                if (currentMachine) {
+                    if (currentMachine.tipo === "core_receptor") {
+                        if(m.type === "raw_iron") {
+                            coreStorage.raw_iron++; // Almacena hierro inútil si no lo trituras
+                        } else if (m.type === "iron_dust") {
+                            coreStorage.iron++; // Hierro listo para vender
+                        } else {
+                            coreStorage.neon++;
+                        }
+                        m.destroy = true;
+                        currentMachine.mineralActual = null;
+                    } 
+                    else {
+                        // Para Crusher: Solo avanza el ítem si NO es raw_iron siendo procesado
+                        if (currentMachine.tipo === "crusher" && m.type === "raw_iron") {
+                            continue; // Se queda bloqueado aplastándose
+                        }
+
+                        let nextX = tileX, nextY = tileY;
+                        if (currentMachine.dir === "E") nextX++;
+                        if (currentMachine.dir === "O") nextX--;
+                        if (currentMachine.dir === "N") nextY--;
+                        if (currentMachine.dir === "S") nextY++;
+
+                        let nextKey = `${nextX},${nextY}`;
+                        let nextMachine = factoryMap[nextKey];
+
+                        if (nextMachine && ["conveyor", "core_receptor", "crusher"].includes(nextMachine.tipo)) {
+                            if (!nextMachine.mineralActual) {
+                                nextMachine.mineralActual = m;
+                                currentMachine.mineralActual = null;
+                                m.targetX = nextX * TILE_SIZE + 25;
+                                m.targetY = nextY * TILE_SIZE + 25;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } // FIN DE LÓGICA CON ENERGÍA
+
+    activeMinerals = activeMinerals.filter(m => !m.destroy);
+    if (logisticsTruck) logisticsTruck.update();
+}
+
+function seleccionarHerramienta(index) {
+    selectedTool = index;
+    document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+    if(index > 0) {
+        document.getElementById(`slot-${index}`).classList.add('selected');
+    }
+}
+
+canvas.addEventListener("mousemove", e => {
+    const rect = canvas.getBoundingClientRect();
+    mouseTileX = Math.floor((e.clientX - rect.left + camX) / TILE_SIZE);
+    mouseTileY = Math.floor((e.clientY - rect.top + camY) / TILE_SIZE);
+});
+
+window.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+    if (e.key >= '1' && e.key <= '6') seleccionarHerramienta(parseInt(e.key));
+    
+    if (e.key === 'r' || e.key === 'R') {
+        let machine = factoryMap[`${mouseTileX},${mouseTileY}`];
+        if (machine && machine.dir) {
+            machine.dir = DIRECTIONS[(DIRECTIONS.indexOf(machine.dir) + 1) % DIRECTIONS.length];
+        }
+    }
+});
+window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+
+canvas.addEventListener("mousedown", e => {
+    if (mouseTileX < 0 || mouseTileX >= GRID_WIDTH || mouseTileY < 0 || mouseTileY >= GRID_HEIGHT) return;
+    const cellKey = `${mouseTileX},${mouseTileY}`;
+
+    if (e.button === 0) { 
+        if (selectedTool !== 0 && !factoryMap[cellKey]) {
+            let config = MACHINE_TYPES[selectedTool];
+            factoryMap[cellKey] = { tipo: config.id, dir: config.dir, color: config.color, mineralActual: null, timer: 0 };
+        }
+    } else if (e.button === 2) { 
+        if (factoryMap[cellKey] && !["core_receptor", "shop_hub"].includes(factoryMap[cellKey].tipo)) {
+            if (factoryMap[cellKey].mineralActual) factoryMap[cellKey].mineralActual.destroy = true;
+            delete factoryMap[cellKey];
+        }
+    }
+});
+canvas.addEventListener("contextmenu", e => e.preventDefault());
+
+function gameLoop() {
+    if (keys['a']) camX -= 8; if (keys['d']) camX += 8;
+    if (keys['w']) camY -= 8; if (keys['s']) camY += 8;
+
+    updateFactoryLogistics();
+
+    // Actualización de UI
+    document.getElementById("res-raw").innerText = `${coreStorage.raw_iron} (Needs Crushing!)`;
+    document.getElementById("res-iron").innerText = coreStorage.iron;
+    document.getElementById("res-neon").innerText = coreStorage.neon;
+    document.getElementById("ui-stress").innerText = `${kineticNetwork.stress} / ${kineticNetwork.capacity} su`;
+    document.getElementById("ui-money").innerText = `$${playerMoney}`;
+    
+    let statusEl = document.getElementById("ui-status");
+    if (kineticNetwork.capacity === 0) { statusEl.innerText = "NO POWER"; statusEl.style.color = "#888"; }
+    else if (kineticNetwork.isOverstressed) { statusEl.innerText = "OVERSTRESSED!"; statusEl.style.color = "#ef4444"; }
+    else { statusEl.innerText = "RUNNING"; statusEl.style.color = "#00ffaa"; }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save(); ctx.translate(-camX, -camY);
+
+    ctx.strokeStyle = "#121225"; ctx.lineWidth = 1;
+    for (let x = 0; x <= GRID_WIDTH * TILE_SIZE; x += TILE_SIZE) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, GRID_HEIGHT * TILE_SIZE); ctx.stroke(); }
+    for (let y = 0; y <= GRID_HEIGHT * TILE_SIZE; y += TILE_SIZE) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(GRID_WIDTH * TILE_SIZE, y); ctx.stroke(); }
+
+    for (let key in oreVeins) {
+        let [vx, vy] = key.split(",").map(Number);
+        let sX = vx * TILE_SIZE; let sY = vy * TILE_SIZE;
+        if (oreVeins[key].type === "raw_iron") {
+            ctx.fillStyle = "#1e2230"; ctx.fillRect(sX + 2, sY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            ctx.fillStyle = "#b45309"; ctx.fillRect(sX + 8, sY + 12, 12, 8); ctx.fillRect(sX + 26, sY + 28, 14, 6); // Hierro crudo (marrón óxido)
+        } else if (oreVeins[key].type === "neon") {
+            ctx.fillStyle = "#0c1b2b"; ctx.fillRect(sX + 2, sY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            ctx.fillStyle = "#00b4d8"; ctx.beginPath();
+            ctx.moveTo(sX + 25, sY + 8); ctx.lineTo(sX + 34, sY + 25); ctx.lineTo(sX + 25, sY + 42); ctx.lineTo(sX + 16, sY + 25); ctx.closePath(); ctx.fill();
+        }
+    }
+
+    if (mouseTileX >= 0 && mouseTileX < GRID_WIDTH && mouseTileY >= 0 && mouseTileY < GRID_HEIGHT) {
+        ctx.strokeStyle = "rgba(217, 119, 6, 0.6)"; ctx.lineWidth = 2;
+        ctx.strokeRect(mouseTileX * TILE_SIZE, mouseTileY * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+
+    for (let key in factoryMap) {
+        let [mx, my] = key.split(",").map(Number);
+        let machine = factoryMap[key];
+        let centroX = mx * TILE_SIZE + 25; let centroY = my * TILE_SIZE + 25;
+
+        ctx.save(); ctx.translate(centroX, centroY);
+        if (machine.dir === "E") ctx.rotate(0); else if (machine.dir === "S") ctx.rotate(Math.PI / 2);
+        else if (machine.dir === "O") ctx.rotate(Math.PI); else if (machine.dir === "N") ctx.rotate(-Math.PI / 2);
+
+        if (machine.tipo === "extractor") {
+            ctx.fillStyle = "#3a4454"; ctx.fillRect(-22, -22, 44, 44);
+            ctx.fillStyle = "#d97706"; ctx.fillRect(16, -8, 8, 16);
+            ctx.fillStyle = "#1e222b"; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+            ctx.save(); ctx.rotate(visualRotationAngle); ctx.strokeStyle = "#ff5500"; ctx.lineWidth = 3;
+            for(let i=0; i<4; i++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 11); ctx.stroke(); }
+            ctx.restore();
+        } 
+        else if (machine.tipo === "conveyor") {
+            ctx.fillStyle = machine.color; ctx.fillRect(-24, -22, 48, 44);
+            ctx.strokeStyle = "#475569"; ctx.lineWidth = 1.5; ctx.strokeRect(-24, -22, 48, 44);
+            ctx.fillStyle = "#1e293b"; ctx.fillRect(-24, -22, 48, 4); ctx.fillRect(-24, 18, 48, 4);
+            ctx.strokeStyle = "#00ffaa"; ctx.lineWidth = 2; ctx.lineCap = "round";
+            for (let ox = -32; ox < 32; ox += 16) {
+                let dibX = ox + conveyorScrollOffset;
+                if (dibX > -20 && dibX < 16) { ctx.beginPath(); ctx.moveTo(dibX, -5); ctx.lineTo(dibX + 5, 0); ctx.lineTo(dibX, 5); ctx.stroke(); }
+            }
+        } 
+        else if (machine.tipo === "water_wheel") {
+            ctx.fillStyle = "#8b5a2b"; ctx.fillRect(-22, -22, 44, 44);
+            ctx.save(); ctx.rotate(visualRotationAngle * 0.5); // Gira más lento
+            ctx.fillStyle = "#d97706";
+            for(let i=0; i<8; i++) { ctx.rotate(Math.PI / 4); ctx.fillRect(-2, -20, 4, 10); }
+            ctx.restore();
+        }
+        else if (machine.tipo === "cogwheel") {
+            ctx.save(); ctx.rotate(-visualRotationAngle); // Gira en reversa visualmente
+            ctx.fillStyle = "#d97706"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#b45309";
+            for(let i=0; i<6; i++) { ctx.rotate(Math.PI / 3); ctx.fillRect(-4, -22, 8, 8); }
+            ctx.fillStyle = "#78350f"; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+        else if (machine.tipo === "crusher") {
+            ctx.fillStyle = "#334155"; ctx.fillRect(-24, -24, 48, 48);
+            ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2; ctx.strokeRect(-24, -24, 48, 48);
+            
+            // Animación de pistón triturador usando seno
+            let crushOffset = (Math.sin(visualRotationAngle * 3) + 1) * 6; 
+            ctx.fillStyle = "#64748b"; 
+            ctx.fillRect(-15, -15 + crushOffset, 30, 8); // Plancha superior aplastando
+            ctx.fillStyle = "#1e293b"; ctx.fillRect(-15, 10, 30, 8); // Base
+        }
+        else if (machine.tipo === "core_receptor") {
+            ctx.fillStyle = machine.color; ctx.fillRect(-23, -23, 46, 46);
+            ctx.strokeStyle = "#ff00ff"; ctx.lineWidth = 2.5; ctx.strokeRect(-23, -23, 46, 46);
+            ctx.fillStyle = "#14091c"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+        }
+        else if (machine.tipo === "shop_hub") {
+            ctx.fillStyle = "#0f172a"; ctx.fillRect(-24, -24, 48, 48);
+            ctx.strokeStyle = "#eab308"; ctx.lineWidth = 2.5; ctx.strokeRect(-24, -24, 48, 48);
+            ctx.fillStyle = "#eab308"; ctx.font = "bold 20px monospace"; ctx.fillText("$", -6, 6);
+        }
+        ctx.restore();
+    }
+
+    // Render Minerales
+    for (let i = 0; i < activeMinerals.length; i++) {
+        let m = activeMinerals[i];
+        ctx.beginPath(); ctx.arc(m.x, m.y, 7, 0, Math.PI * 2);
+        
+        if (m.type === "raw_iron") { ctx.fillStyle = "#b45309"; } // Naranja óxido crudo
+        else if (m.type === "iron_dust") { ctx.fillStyle = "#ffd700"; } // Dorado brillante refinado
+        else { ctx.fillStyle = "#00ffff"; } // Neon
+        
+        ctx.fill(); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    if (logisticsTruck) logisticsTruck.draw();
+    ctx.restore();
+    requestAnimationFrame(gameLoop);
+}
+
+generateOreVeins();
+requestAnimationFrame(gameLoop);
+
+window.addEventListener("resize", () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+</script>
+</body>
+</html>
