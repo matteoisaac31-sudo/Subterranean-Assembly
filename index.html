@@ -5,8 +5,32 @@
     <title>Subterranean Assembly - CREATE EDITION ⚙️</title>
     <style>
         body { margin: 0; background-color: #080810; overflow: hidden; font-family: monospace; user-select: none; color: #fff; }
-        canvas { display: block; background: radial-gradient(circle, #101026 0%, #05050f 100%); }
+        canvas { display: none; background: radial-gradient(circle, #101026 0%, #05050f 100%); }
         
+        /* --- MENÚ PRINCIPAL Y AJUSTES --- */
+        #main-menu {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background-color: #080810; z-index: 100;
+        }
+        .main-title { color: #d97706; font-size: 32px; font-weight: bold; margin-bottom: 5px; }
+        .sub-title { color: #888; font-size: 16px; margin-bottom: 40px; }
+        .menu-btn {
+            background: rgba(20, 20, 35, 0.8); color: #fff; border: 2px solid #555577;
+            padding: 15px 30px; margin: 10px; font-family: monospace; font-size: 16px;
+            cursor: pointer; transition: 0.2s; width: 250px;
+        }
+        .menu-btn:hover { border-color: #d97706; background: rgba(217, 119, 6, 0.2); }
+
+        #settings-modal {
+            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(10, 5, 5, 0.95); padding: 30px; border: 2px solid #d97706;
+            border-radius: 8px; z-index: 200; width: 300px; text-align: center;
+        }
+
+        /* --- UI DEL JUEGO --- */
+        #game-ui { display: none; }
+
         #hud {
             position: absolute; top: 15px; left: 15px; 
             background: rgba(10, 5, 5, 0.95); padding: 15px;
@@ -25,7 +49,7 @@
             width: 70px; height: 60px; background: rgba(20, 20, 35, 0.8);
             border: 2px solid #555577; border-radius: 4px; display: flex;
             flex-direction: column; align-items: center; justify-content: center;
-            position: relative; cursor: pointer; transition: 0.1s;
+            position: relative; cursor: pointer; transition: 0.1s; pointer-events: auto;
         }
         .slot.selected { border-color: #d97706; background: rgba(217, 119, 6, 0.15); box-shadow: 0 0 8px rgba(217, 119, 6, 0.4); }
         .slot-key { position: absolute; top: 2px; left: 4px; font-size: 10px; color: #888; }
@@ -42,57 +66,195 @@
         #controles-info {
             position: absolute; top: 15px; right: 15px;
             background: rgba(5, 5, 15, 0.85); padding: 12px;
-            border-radius: 6px; border: 1px solid #555577; font-size: 11px; line-height: 1.5;
+            border-radius: 6px; border: 1px solid #555577; font-size: 11px; line-height: 1.5; pointer-events: none;
+        }
+
+        #btn-ingame-settings {
+            position: absolute; top: 150px; right: 15px;
+            background: rgba(5, 5, 15, 0.85); padding: 8px; border: 1px solid #555577;
+            color: #fff; font-family: monospace; cursor: pointer; pointer-events: auto;
+        }
+
+        /* --- TUTORIAL --- */
+        #tutorial-popup {
+            display: none; position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(10, 5, 5, 0.95); padding: 15px; border: 2px solid #00ffaa;
+            border-radius: 6px; z-index: 50; text-align: center; font-size: 12px; line-height: 1.6;
         }
     </style>
 </head>
 <body>
 
-    <div id="hud">
-        <div class="hud-title">⚙️ KINETIC NETWORK</div>
-        <div class="stat-line"><span>KINETIC STRESS:</span> <span id="ui-stress" style="color: #00ffff;">0 / 0 su</span></div>
-        <div class="stat-line"><span>NETWORK STATUS:</span> <span id="ui-status" style="color: #00ffaa; font-weight: bold;">IDLE</span></div>
-        <div class="stat-line"><span>TOTAL CREDITS:</span> <span id="ui-money" style="color: #ffcc00; font-weight: bold;">$0</span></div>
-        <hr style="border: 0; border-top: 1px solid #333355; margin: 10px 0;">
-        <div class="stat-line"><span>CORE BUFFER:</span></div>
-        <div class="stat-line" style="padding-left: 10px; font-size: 11px;"><span>▪ Raw Iron:</span> <span id="res-raw" style="color:#ef4444;">0 (Needs Crushing!)</span></div>
-        <div class="stat-line" style="padding-left: 10px;"><span>▪ Refined Dust:</span> <span id="res-iron" style="color:#ffd700;">0</span></div>
-        <div class="stat-line" style="padding-left: 10px;"><span>▪ Neon Crystal:</span> <span id="res-neon" style="color:#00ffff;">0</span></div>
+    <div id="main-menu">
+        <div class="main-title">SUBTERRANEAN ASSEMBLY</div>
+        <div class="sub-title">⚙️ CREATE EDITION ⚙️</div>
+        <button class="menu-btn" id="btn-solo" onclick="startSolo()">Play Solo</button>
+        <button class="menu-btn" id="btn-settings-menu" onclick="toggleSettings()">Settings</button>
     </div>
 
-    <div id="controles-info">
-        <b style="color: #d97706;">CREATE CONSOLE:</b><br>
-        • <b>W, A, S, D</b> : Move Camera<br>
-        • <b>Keys 1 to 6</b> : Select Component<br>
-        • <b>Mouse + R</b> : Rotate Component<br>
-        • <b>Left Click</b> : Assemble<br>
-        • <b>Right Click</b> : Break
+    <div id="settings-modal">
+        <h3 id="txt-set-title" style="color: #d97706; margin-top: 0;">SETTINGS</h3>
+        <p id="txt-lang-label">Language / Idioma:</p>
+        <button class="menu-btn" style="width: 120px; padding: 10px;" onclick="changeLang('en')">English</button>
+        <button class="menu-btn" style="width: 120px; padding: 10px;" onclick="changeLang('es')">Español</button>
+        <br><br>
+        <button class="menu-btn" id="btn-close-settings" style="width: 100%; border-color: red;" onclick="toggleSettings()">Close</button>
     </div>
 
-    <div id="hotbar">
-        <div class="slot selected" id="slot-1" onclick="seleccionarHerramienta(1)">
-            <span class="slot-key">1</span><div class="preview-box p-drill"></div><div class="slot-name">MECH. DRILL</div>
+    <div id="game-ui">
+        <div id="hud">
+            <div class="hud-title" id="txt-net-title">⚙️ KINETIC NETWORK</div>
+            <div class="stat-line"><span id="txt-stress">KINETIC STRESS:</span> <span id="ui-stress" style="color: #00ffff;">0 / 0 su</span></div>
+            <div class="stat-line"><span id="txt-status">NETWORK STATUS:</span> <span id="ui-status" style="color: #00ffaa; font-weight: bold;">IDLE</span></div>
+            <div class="stat-line"><span id="txt-credits">TOTAL CREDITS:</span> <span id="ui-money" style="color: #ffcc00; font-weight: bold;">$0</span></div>
+            <hr style="border: 0; border-top: 1px solid #333355; margin: 10px 0;">
+            <div class="stat-line"><span id="txt-core">CORE BUFFER:</span></div>
+            <div class="stat-line" style="padding-left: 10px; font-size: 11px;"><span>▪ Raw Iron:</span> <span id="res-raw" style="color:#ef4444;">0</span></div>
+            <div class="stat-line" style="padding-left: 10px;"><span>▪ Refined Dust:</span> <span id="res-iron" style="color:#ffd700;">0</span></div>
+            <div class="stat-line" style="padding-left: 10px;"><span>▪ Neon Crystal:</span> <span id="res-neon" style="color:#00ffff;">0</span></div>
         </div>
-        <div class="slot" id="slot-2" onclick="seleccionarHerramienta(2)">
-            <span class="slot-key">2</span><div class="preview-box p-conv"></div><div class="slot-name">MECH. BELT</div>
+
+        <div id="controles-info">
+            <b style="color: #d97706;" id="txt-ctrl-title">CREATE CONSOLE:</b><br>
+            • <b id="txt-ctrl-1">W, A, S, D : Move Camera</b><br>
+            • <b id="txt-ctrl-2">Keys 1 to 6 : Select Component</b><br>
+            • <b id="txt-ctrl-3">Mouse + R : Rotate Component</b><br>
+            • <b id="txt-ctrl-4">Left Click : Assemble</b><br>
+            • <b id="txt-ctrl-5">Right Click : Break</b>
         </div>
-        <div class="slot" id="slot-3" onclick="seleccionarHerramienta(3)">
-            <span class="slot-key">3</span><div class="preview-box p-core"></div><div class="slot-name">VAULT (CORE)</div>
+
+        <button id="btn-ingame-settings" onclick="toggleSettings()">⚙️ Settings</button>
+
+        <div id="hotbar">
+            <div class="slot selected" id="slot-1" onclick="seleccionarHerramienta(1)">
+                <span class="slot-key">1</span><div class="preview-box p-drill"></div><div class="slot-name" id="name-1">MECH. DRILL</div>
+            </div>
+            <div class="slot" id="slot-2" onclick="seleccionarHerramienta(2)">
+                <span class="slot-key">2</span><div class="preview-box p-conv"></div><div class="slot-name" id="name-2">MECH. BELT</div>
+            </div>
+            <div class="slot" id="slot-3" onclick="seleccionarHerramienta(3)">
+                <span class="slot-key">3</span><div class="preview-box p-core"></div><div class="slot-name" id="name-3">VAULT (CORE)</div>
+            </div>
+            <div class="slot" id="slot-4" onclick="seleccionarHerramienta(4)">
+                <span class="slot-key">4</span><div class="preview-box p-wheel"></div><div class="slot-name" id="name-4">WATER WHEEL</div>
+            </div>
+            <div class="slot" id="slot-5" onclick="seleccionarHerramienta(5)">
+                <span class="slot-key">5</span><div class="preview-box p-cog"></div><div class="slot-name" id="name-5">COGWHEEL</div>
+            </div>
+            <div class="slot" id="slot-6" onclick="seleccionarHerramienta(6)">
+                <span class="slot-key">6</span><div class="preview-box p-crush"></div><div class="slot-name" id="name-6">CRUSHER</div>
+            </div>
         </div>
-        <div class="slot" id="slot-4" onclick="seleccionarHerramienta(4)">
-            <span class="slot-key">4</span><div class="preview-box p-wheel"></div><div class="slot-name">WATER WHEEL</div>
-        </div>
-        <div class="slot" id="slot-5" onclick="seleccionarHerramienta(5)">
-            <span class="slot-key">5</span><div class="preview-box p-cog"></div><div class="slot-name">COGWHEEL</div>
-        </div>
-        <div class="slot" id="slot-6" onclick="seleccionarHerramienta(6)">
-            <span class="slot-key">6</span><div class="preview-box p-crush"></div><div class="slot-name">CRUSHER</div>
+
+        <div id="tutorial-popup">
+            <div id="tutorial-text"></div>
+            <button class="menu-btn" id="btn-next-tut" style="padding: 5px 15px; margin-top: 10px; width: auto;" onclick="nextTutorial()">Next ></button>
         </div>
     </div>
 
     <canvas id="factoryCanvas"></canvas>
 
 <script>
+// --- SISTEMA DE IDIOMAS Y UI ---
+const translations = {
+    en: {
+        btnSolo: "Play Solo", btnSetMenu: "Settings", setTitle: "SETTINGS", closeSet: "Close",
+        netTitle: "⚙️ KINETIC NETWORK", stress: "KINETIC STRESS:", status: "NETWORK STATUS:", 
+        credits: "TOTAL CREDITS:", core: "CORE BUFFER:", needsCrush: "(Needs Crushing!)",
+        ctrlTitle: "CREATE CONSOLE:", c1: "W, A, S, D : Move Camera", c2: "Keys 1 to 6 : Select Component",
+        c3: "Mouse + R : Rotate Component", c4: "Left Click : Assemble", c5: "Right Click : Break",
+        m1: "MECH. DRILL", m2: "MECH. BELT", m3: "VAULT (CORE)", m4: "WATER WHEEL", m5: "COGWHEEL", m6: "CRUSHER",
+        tutNext: "Next >", statusIdle: "IDLE", statusRunning: "RUNNING", statusNoPower: "NO POWER", statusOver: "OVERSTRESSED!",
+        tutorials: [
+            "Welcome to Subterranean Assembly!\nYour goal is to process raw ores.\nTop left shows your energy grid.\nIf you exceed limit, it stops!\nBuilding is currently blocked.\nPress [Next] to start playing."
+        ]
+    },
+    es: {
+        btnSolo: "Jugar Solo", btnSetMenu: "Ajustes", setTitle: "AJUSTES", closeSet: "Cerrar",
+        netTitle: "⚙️ RED CINÉTICA", stress: "ESTRÉS CINÉTICO:", status: "ESTADO DE RED:", 
+        credits: "CRÉDITOS TOTALES:", core: "ALMACÉN CENTRAL:", needsCrush: "(¡Triturar!)",
+        ctrlTitle: "CONSOLA DE CREACIÓN:", c1: "W, A, S, D : Mover Cámara", c2: "Teclas 1 a 6 : Elegir Máquina",
+        c3: "Ratón + R : Rotar Máquina", c4: "Clic Izq : Construir", c5: "Clic Der : Destruir",
+        m1: "EXTRACTOR", m2: "CINTA MEC.", m3: "BÓVEDA (CORE)", m4: "RUEDA AGUA", m5: "ENGRANAJE", m6: "TRITURADORA",
+        tutNext: "Siguiente >", statusIdle: "INACTIVO", statusRunning: "OPERANDO", statusNoPower: "SIN ENERGÍA", statusOver: "¡SOBRECARGA!",
+        tutorials: [
+            "¡Bienvenido a Subterranean Assembly!\nTu objetivo es procesar minerales.\nArriba está tu red de energía.\n¡Si superas el límite, se detiene!\nConstruir está bloqueado ahora.\nPresiona [Siguiente] para jugar."
+        ]
+    }
+};
+
+let currentLang = 'en';
+let settingsOpen = false;
+let tutorialActive = false;
+let currentTutorialStep = 0;
+
+function changeLang(lang) {
+    currentLang = lang;
+    const t = translations[lang];
+    
+    document.getElementById('btn-solo').innerText = t.btnSolo;
+    document.getElementById('btn-settings-menu').innerText = t.btnSetMenu;
+    document.getElementById('txt-set-title').innerText = t.setTitle;
+    document.getElementById('btn-close-settings').innerText = t.closeSet;
+    
+    document.getElementById('txt-net-title').innerText = t.netTitle;
+    document.getElementById('txt-stress').innerText = t.stress;
+    document.getElementById('txt-status').innerText = t.status;
+    document.getElementById('txt-credits').innerText = t.credits;
+    document.getElementById('txt-core').innerText = t.core;
+    
+    document.getElementById('txt-ctrl-title').innerText = t.ctrlTitle;
+    document.getElementById('txt-ctrl-1').innerText = t.c1;
+    document.getElementById('txt-ctrl-2').innerText = t.c2;
+    document.getElementById('txt-ctrl-3').innerText = t.c3;
+    document.getElementById('txt-ctrl-4').innerText = t.c4;
+    document.getElementById('txt-ctrl-5').innerText = t.c5;
+
+    document.getElementById('name-1').innerText = t.m1; document.getElementById('name-2').innerText = t.m2;
+    document.getElementById('name-3').innerText = t.m3; document.getElementById('name-4').innerText = t.m4;
+    document.getElementById('name-5').innerText = t.m5; document.getElementById('name-6').innerText = t.m6;
+    
+    document.getElementById('btn-next-tut').innerText = t.tutNext;
+    
+    if(tutorialActive) showTutorialStep();
+}
+
+function toggleSettings() {
+    settingsOpen = !settingsOpen;
+    document.getElementById('settings-modal').style.display = settingsOpen ? 'block' : 'none';
+}
+
+function startSolo() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('game-ui').style.display = 'block';
+    canvas.style.display = 'block';
+    
+    generateOreVeins();
+    requestAnimationFrame(gameLoop);
+    
+    // Iniciar tutorial
+    tutorialActive = true;
+    document.getElementById('tutorial-popup').style.display = 'block';
+    showTutorialStep();
+}
+
+function showTutorialStep() {
+    const t = translations[currentLang].tutorials;
+    if (currentTutorialStep < t.length) {
+        document.getElementById('tutorial-text').innerHTML = t[currentTutorialStep].replace(/\n/g, '<br>');
+    } else {
+        document.getElementById('tutorial-popup').style.display = 'none';
+        tutorialActive = false; // DESBLOQUEA LA CONSTRUCCIÓN
+    }
+}
+
+function nextTutorial() {
+    currentTutorialStep++;
+    showTutorialStep();
+}
+
+
+// --- LÓGICA ORIGINAL DEL JUEGO ---
 const canvas = document.getElementById("factoryCanvas");
 const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
@@ -106,9 +268,8 @@ let mouseTileX = 0; let mouseTileY = 0;
 let playerMoney = 0;
 let coreStorage = { raw_iron: 0, iron: 0, neon: 0 };
 
-// NUEVO SISTEMA KINÉTICO (Reemplaza a Network Power)
 let kineticNetwork = { capacity: 0, stress: 0, isOverstressed: false };
-let globalRotationSpeed = 0; // Se detiene si hay Overstress
+let globalRotationSpeed = 0; 
 let visualRotationAngle = 0;
 
 let factoryMap = {};
@@ -120,17 +281,16 @@ let selectedTool = 1;
 
 let conveyorScrollOffset = 0;
 
-// Tipos de Máquinas actualizadas con Costos de Estrés (su = stress units)
 const MACHINE_TYPES = {
-    1: { id: "extractor", color: "#ff5500", name: "Mechanical Drill", stressCost: 64, stressGen: 0, dir: "E" },
-    2: { id: "conveyor", color: "#222c3a", name: "Mechanical Belt", stressCost: 4, stressGen: 0, dir: "E" },
-    3: { id: "core_receptor", color: "#2d1b3d", name: "Item Vault", stressCost: 0, stressGen: 0, dir: null },
-    4: { id: "water_wheel", color: "#8b5a2b", name: "Water Wheel", stressCost: 0, stressGen: 256, dir: "N" },
-    5: { id: "cogwheel", color: "#d97706", name: "Cogwheel", stressCost: 1, stressGen: 0, dir: null },
-    6: { id: "crusher", color: "#475569", name: "Mechanical Crusher", stressCost: 128, stressGen: 0, dir: "E" }
+    1: { id: "extractor", color: "#ff5500", stressCost: 64, stressGen: 0, dir: "E" },
+    2: { id: "conveyor", color: "#222c3a", stressCost: 4, stressGen: 0, dir: "E" },
+    3: { id: "core_receptor", color: "#2d1b3d", stressCost: 0, stressGen: 0, dir: null },
+    4: { id: "water_wheel", color: "#8b5a2b", stressCost: 0, stressGen: 256, dir: "N" },
+    5: { id: "cogwheel", color: "#d97706", stressCost: 1, stressGen: 0, dir: null },
+    6: { id: "crusher", color: "#475569", stressCost: 128, stressGen: 0, dir: "E" }
 };
 
-const PRICES = { iron: 25, neon: 50 }; // Solo se paga por hierro refinado
+const PRICES = { iron: 25, neon: 50 }; 
 
 class TransportTruck {
     constructor(startX, startY, targetX, targetY) {
@@ -148,7 +308,6 @@ class TransportTruck {
         let totalCargo = this.cargo.iron + this.cargo.neon;
         if (this.state === "LOADING") {
             if (totalCargo < this.maxCapacity) {
-                // EL CAMIÓN AHORA IGNORA EL RAW IRON. SOLO LLEVA IRON REFINADO.
                 if (coreStorage.iron > 0) {
                     coreStorage.iron--; this.cargo.iron++;
                 } else if (coreStorage.neon > 0) {
@@ -202,7 +361,7 @@ class Mineral {
     constructor(startX, startY, type) {
         this.x = startX; this.y = startY; 
         this.targetX = startX; this.targetY = startY;
-        this.type = type; // "raw_iron", "iron_dust", "neon"
+        this.type = type; 
         this.destroy = false;
     }
 }
@@ -238,7 +397,6 @@ function updateKineticNetwork() {
 
     kineticNetwork.isOverstressed = kineticNetwork.stress > kineticNetwork.capacity;
     
-    // Si hay energía mecánica suficiente, todo gira. Si no, se bloquea.
     if (!kineticNetwork.isOverstressed && kineticNetwork.capacity > 0) {
         globalRotationSpeed = 0.08;
         visualRotationAngle += globalRotationSpeed;
@@ -252,7 +410,6 @@ function updateFactoryLogistics() {
     updateKineticNetwork();
 
     if (!kineticNetwork.isOverstressed && kineticNetwork.capacity > 0) {
-        // PROCESAMIENTO DE MÁQUINAS SOLO SI HAY ENERGÍA
         for (let key in factoryMap) {
             let machine = factoryMap[key];
             let [mX, mY] = key.split(",").map(Number);
@@ -274,15 +431,14 @@ function updateFactoryLogistics() {
             else if (machine.tipo === "crusher") {
                 if (machine.mineralActual && machine.mineralActual.type === "raw_iron") {
                     machine.timer++;
-                    if (machine.timer >= 50) { // Toma tiempo aplastar el mineral
-                        machine.mineralActual.type = "iron_dust"; // TRITURACIÓN COMPLETADA
+                    if (machine.timer >= 50) { 
+                        machine.mineralActual.type = "iron_dust"; 
                         machine.timer = 0;
                     }
                 }
             }
         }
 
-        // FÍSICAS DE MOVIMIENTO EN CINTAS
         for (let i = 0; i < activeMinerals.length; i++) {
             let m = activeMinerals[i];
 
@@ -300,9 +456,9 @@ function updateFactoryLogistics() {
                 if (currentMachine) {
                     if (currentMachine.tipo === "core_receptor") {
                         if(m.type === "raw_iron") {
-                            coreStorage.raw_iron++; // Almacena hierro inútil si no lo trituras
+                            coreStorage.raw_iron++; 
                         } else if (m.type === "iron_dust") {
-                            coreStorage.iron++; // Hierro listo para vender
+                            coreStorage.iron++; 
                         } else {
                             coreStorage.neon++;
                         }
@@ -310,9 +466,8 @@ function updateFactoryLogistics() {
                         currentMachine.mineralActual = null;
                     } 
                     else {
-                        // Para Crusher: Solo avanza el ítem si NO es raw_iron siendo procesado
                         if (currentMachine.tipo === "crusher" && m.type === "raw_iron") {
-                            continue; // Se queda bloqueado aplastándose
+                            continue; 
                         }
 
                         let nextX = tileX, nextY = tileY;
@@ -336,7 +491,7 @@ function updateFactoryLogistics() {
                 }
             }
         }
-    } // FIN DE LÓGICA CON ENERGÍA
+    } 
 
     activeMinerals = activeMinerals.filter(m => !m.destroy);
     if (logisticsTruck) logisticsTruck.update();
@@ -370,6 +525,9 @@ window.addEventListener("keydown", e => {
 window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
 
 canvas.addEventListener("mousedown", e => {
+    // RESTRICCIÓN: No construir ni interactuar si el tutorial está en pantalla
+    if (tutorialActive || settingsOpen) return;
+
     if (mouseTileX < 0 || mouseTileX >= GRID_WIDTH || mouseTileY < 0 || mouseTileY >= GRID_HEIGHT) return;
     const cellKey = `${mouseTileX},${mouseTileY}`;
 
@@ -393,17 +551,17 @@ function gameLoop() {
 
     updateFactoryLogistics();
 
-    // Actualización de UI
-    document.getElementById("res-raw").innerText = `${coreStorage.raw_iron} (Needs Crushing!)`;
+    const t = translations[currentLang];
+    document.getElementById("res-raw").innerText = `${coreStorage.raw_iron} ${t.needsCrush}`;
     document.getElementById("res-iron").innerText = coreStorage.iron;
     document.getElementById("res-neon").innerText = coreStorage.neon;
     document.getElementById("ui-stress").innerText = `${kineticNetwork.stress} / ${kineticNetwork.capacity} su`;
     document.getElementById("ui-money").innerText = `$${playerMoney}`;
     
     let statusEl = document.getElementById("ui-status");
-    if (kineticNetwork.capacity === 0) { statusEl.innerText = "NO POWER"; statusEl.style.color = "#888"; }
-    else if (kineticNetwork.isOverstressed) { statusEl.innerText = "OVERSTRESSED!"; statusEl.style.color = "#ef4444"; }
-    else { statusEl.innerText = "RUNNING"; statusEl.style.color = "#00ffaa"; }
+    if (kineticNetwork.capacity === 0) { statusEl.innerText = t.statusNoPower; statusEl.style.color = "#888"; }
+    else if (kineticNetwork.isOverstressed) { statusEl.innerText = t.statusOver; statusEl.style.color = "#ef4444"; }
+    else { statusEl.innerText = t.statusRunning; statusEl.style.color = "#00ffaa"; }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save(); ctx.translate(-camX, -camY);
@@ -417,7 +575,7 @@ function gameLoop() {
         let sX = vx * TILE_SIZE; let sY = vy * TILE_SIZE;
         if (oreVeins[key].type === "raw_iron") {
             ctx.fillStyle = "#1e2230"; ctx.fillRect(sX + 2, sY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-            ctx.fillStyle = "#b45309"; ctx.fillRect(sX + 8, sY + 12, 12, 8); ctx.fillRect(sX + 26, sY + 28, 14, 6); // Hierro crudo (marrón óxido)
+            ctx.fillStyle = "#b45309"; ctx.fillRect(sX + 8, sY + 12, 12, 8); ctx.fillRect(sX + 26, sY + 28, 14, 6); 
         } else if (oreVeins[key].type === "neon") {
             ctx.fillStyle = "#0c1b2b"; ctx.fillRect(sX + 2, sY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
             ctx.fillStyle = "#00b4d8"; ctx.beginPath();
@@ -459,13 +617,13 @@ function gameLoop() {
         } 
         else if (machine.tipo === "water_wheel") {
             ctx.fillStyle = "#8b5a2b"; ctx.fillRect(-22, -22, 44, 44);
-            ctx.save(); ctx.rotate(visualRotationAngle * 0.5); // Gira más lento
+            ctx.save(); ctx.rotate(visualRotationAngle * 0.5); 
             ctx.fillStyle = "#d97706";
             for(let i=0; i<8; i++) { ctx.rotate(Math.PI / 4); ctx.fillRect(-2, -20, 4, 10); }
             ctx.restore();
         }
         else if (machine.tipo === "cogwheel") {
-            ctx.save(); ctx.rotate(-visualRotationAngle); // Gira en reversa visualmente
+            ctx.save(); ctx.rotate(-visualRotationAngle); 
             ctx.fillStyle = "#d97706"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "#b45309";
             for(let i=0; i<6; i++) { ctx.rotate(Math.PI / 3); ctx.fillRect(-4, -22, 8, 8); }
@@ -476,11 +634,10 @@ function gameLoop() {
             ctx.fillStyle = "#334155"; ctx.fillRect(-24, -24, 48, 48);
             ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2; ctx.strokeRect(-24, -24, 48, 48);
             
-            // Animación de pistón triturador usando seno
             let crushOffset = (Math.sin(visualRotationAngle * 3) + 1) * 6; 
             ctx.fillStyle = "#64748b"; 
-            ctx.fillRect(-15, -15 + crushOffset, 30, 8); // Plancha superior aplastando
-            ctx.fillStyle = "#1e293b"; ctx.fillRect(-15, 10, 30, 8); // Base
+            ctx.fillRect(-15, -15 + crushOffset, 30, 8); 
+            ctx.fillStyle = "#1e293b"; ctx.fillRect(-15, 10, 30, 8); 
         }
         else if (machine.tipo === "core_receptor") {
             ctx.fillStyle = machine.color; ctx.fillRect(-23, -23, 46, 46);
@@ -495,25 +652,25 @@ function gameLoop() {
         ctx.restore();
     }
 
-    // Render Minerales
     for (let i = 0; i < activeMinerals.length; i++) {
         let m = activeMinerals[i];
         ctx.beginPath(); ctx.arc(m.x, m.y, 7, 0, Math.PI * 2);
         
-        if (m.type === "raw_iron") { ctx.fillStyle = "#b45309"; } // Naranja óxido crudo
-        else if (m.type === "iron_dust") { ctx.fillStyle = "#ffd700"; } // Dorado brillante refinado
-        else { ctx.fillStyle = "#00ffff"; } // Neon
+        if (m.type === "raw_iron") { ctx.fillStyle = "#b45309"; } 
+        else if (m.type === "iron_dust") { ctx.fillStyle = "#ffd700"; } 
+        else { ctx.fillStyle = "#00ffff"; } 
         
         ctx.fill(); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.stroke();
     }
 
     if (logisticsTruck) logisticsTruck.draw();
     ctx.restore();
-    requestAnimationFrame(gameLoop);
+    
+    // Solo continuar el loop si estamos jugando
+    if(document.getElementById('game-ui').style.display === 'block') {
+        requestAnimationFrame(gameLoop);
+    }
 }
-
-generateOreVeins();
-requestAnimationFrame(gameLoop);
 
 window.addEventListener("resize", () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
 </script>
